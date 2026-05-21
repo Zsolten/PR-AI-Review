@@ -17,6 +17,14 @@ body {
   @apply m-0 min-h-screen bg-[var(--color-surface)] font-sans text-zinc-100 antialiased;
 }
 
+/* Hide scrollbar globally for clean UI, but keep scrolling functionality */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}
+
 #root {
   @apply min-h-screen;
 }

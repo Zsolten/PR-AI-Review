@@ -5,6 +5,7 @@ import { ConnectRepoModal } from "./components/ConnectRepoModal";
 import { AIReviewPanel } from "./components/AIReviewPanel";
 import { ChangedFilesPanel } from "./components/ChangedFilesPanel";
 import { ChatPanel } from "./components/ChatPanel";
+import { TeamMemoryPanel } from "./components/TeamMemoryPanel";
 import { usePolling } from "./hooks/usePolling";
 import type { ChatMessage, PullRequestDetail, PullRequestListItem, Repository } from "./types";
 
@@ -29,6 +30,7 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const [refreshingPr, setRefreshingPr] = useState(false);
+  const [activePanelTab, setActivePanelTab] = useState<"review" | "files">("review");
 
   const loadRepositories = useCallback(async () => {
     const repos = await api.listRepositories();
@@ -217,23 +219,27 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        repositories={repositories}
-        selectedRepoId={selectedRepoId}
-        pullRequests={pullRequests}
-        selectedPrId={selectedPrId}
-        prFilter={prFilter}
-        onPrFilterChange={setPrFilter}
-        onSelectRepo={setSelectedRepoId}
-        onSelectPr={setSelectedPrId}
-        onSync={handleSync}
-        loading={loading}
-        syncError={syncError}
-        lastSynced={lastSynced}
-      />
+      <div className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+        <Sidebar
+          repositories={repositories}
+          selectedRepoId={selectedRepoId}
+          pullRequests={pullRequests}
+          selectedPrId={selectedPrId}
+          prFilter={prFilter}
+          onPrFilterChange={setPrFilter}
+          onSelectRepo={setSelectedRepoId}
+          onSelectPr={setSelectedPrId}
+          onSync={handleSync}
+          loading={loading}
+          syncError={syncError}
+          lastSynced={lastSynced}
+          embedded
+        />
+        <TeamMemoryPanel repositoryId={selectedRepoId} />
+      </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
+        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-[var(--color-border)] pl-4 pr-6">
           <div>
             {prDetail ? (
               <>
@@ -296,29 +302,43 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto p-6 lg:grid-cols-2">
-            <div className="space-y-4">
+          <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden py-3 pl-4 pr-6 lg:grid-cols-5">
+            <div className="flex flex-col gap-4 overflow-hidden lg:col-span-3">
               {prDetail.body && (
-                <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+                <section className="shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
                     Description
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-300">{prDetail.body}</p>
                 </section>
               )}
-              <AIReviewPanel
-                reviews={prDetail.reviews}
-                generating={generating || reviewInProgress}
-                onGenerate={handleGenerateReview}
-              />
-              <ChangedFilesPanel files={prDetail.files} />
+
+              {activePanelTab === "review" ? (
+                <AIReviewPanel
+                  reviews={prDetail.reviews}
+                  generating={generating || reviewInProgress}
+                  onGenerate={handleGenerateReview}
+                  activePanelTab={activePanelTab}
+                  onTabChange={setActivePanelTab}
+                  filesCount={prDetail.files.length}
+                />
+              ) : (
+                <ChangedFilesPanel 
+                  files={prDetail.files} 
+                  activePanelTab={activePanelTab}
+                  onTabChange={setActivePanelTab}
+                  filesCount={prDetail.files.length}
+                />
+              )}
             </div>
-            <ChatPanel
-              messages={chatMessages}
-              onSend={handleChat}
-              sending={chatSending}
-              error={chatError}
-            />
+            <div className="lg:col-span-2 flex flex-col min-h-0">
+              <ChatPanel
+                messages={chatMessages}
+                onSend={handleChat}
+                sending={chatSending}
+                error={chatError}
+              />
+            </div>
           </div>
         )}
       </main>

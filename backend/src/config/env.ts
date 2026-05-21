@@ -15,6 +15,10 @@ const envSchema = z.object({
     .optional()
     .transform((v) => (v?.trim() ? v.trim() : undefined)),
   GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
+  AI_TOOLS_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
 });
 
 export type Env = z.infer<typeof envSchema>;

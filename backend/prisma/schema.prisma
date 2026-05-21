@@ -18,8 +18,21 @@ model Repository {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   pullRequests  PullRequest[]
+  teamRules     TeamRule[]
 
   @@index([owner, name])
+}
+
+model TeamRule {
+  id           String     @id @default(cuid())
+  content      String     @db.Text
+  enabled      Boolean    @default(true)
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([repositoryId, enabled])
 }
 
 model PullRequest {
@@ -80,30 +93,31 @@ enum AICommentCategory {
 }
 
 model AIReview {
-  id            String         @id @default(cuid())
-  summary       String?        @db.Text
-  riskAnalysis  String?        @db.Text
-  status        AIReviewStatus @default(PENDING)
-  errorMessage  String?
-  pullRequestId String
-  pullRequest   PullRequest    @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
-  comments      AIComment[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  summary          String?        @db.Text
+  riskAnalysis     String?        @db.Text
+  storyWalkthrough Json?
+  status           AIReviewStatus @default(PENDING)
+  errorMessage     String?
+  pullRequestId    String
+  pullRequest      PullRequest    @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  comments         AIComment[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([pullRequestId, createdAt])
 }
 
 model AIComment {
-  id         String            @id @default(cuid())
-  category   AICommentCategory
-  file       String?
-  line       Int?
-  message    String            @db.Text
-  severity   String            @default("info")
-  reviewId   String
-  review     AIReview          @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  createdAt  DateTime          @default(now())
+  id        String            @id @default(cuid())
+  category  AICommentCategory
+  file      String?
+  line      Int?
+  message   String            @db.Text
+  severity  String            @default("info")
+  reviewId  String
+  review    AIReview          @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
 
   @@index([reviewId])
 }
