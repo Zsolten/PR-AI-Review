@@ -9,3 +9,20 @@ export interface ReviewLLMResult {
     severity: string;
   }>;
 }
+
+export interface StoryStep {
+  filename: string;
+  orderIndex: number;
+  logicalLayer: string;
+  narrative: string;
+}
+
+export interface StoryLLMResult {
+  storySteps: StoryStep[];
+}
+
+export interface StoryFileInput {
+  filename: string;
+  status: string;
+  patch: string | null;
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import type { ChatMessage } from "../types";
 
 const SUGGESTIONS = [
@@ -25,8 +26,8 @@ export function ChatPanel({ messages, onSend, sending, error }: ChatPanelProps) 
   };
 
   return (
-    <section className="flex h-full min-h-[320px] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-      <div className="border-b border-[var(--color-border)] px-4 py-3">
+    <section className="flex flex-col h-full min-h-[320px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+      <div className="border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-elevated)]">
         <h3 className="text-sm font-semibold">Ask about this PR</h3>
       </div>
 
@@ -56,7 +57,30 @@ export function ChatPanel({ messages, onSend, sending, error }: ChatPanelProps) 
               <span className="mb-1 block text-[10px] uppercase text-[var(--color-muted)]">
                 {m.role}
               </span>
-              <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown
+                  components={{
+                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                    ul: ({ node, ...props }) => <ul className="mb-2 list-disc pl-4 last:mb-0" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="mb-2 list-decimal pl-4 last:mb-0" {...props} />,
+                    li: ({ node, ...props }) => <li className="mb-1 last:mb-0" {...props} />,
+                    code: ({ node, className, children, ...props }: any) => {
+                      const isInline = !String(children).includes("\n");
+                      return isInline ? (
+                        <code className="rounded bg-zinc-700/50 px-1.5 py-0.5 font-mono text-[13px] text-[var(--color-accent-dim)]" {...props}>
+                          {children}
+                        </code>
+                      ) : (
+                        <code className="block rounded-md bg-zinc-950/80 p-3 font-mono text-[13px] overflow-x-auto my-2 border border-[var(--color-border)]" {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
+                  {m.content}
+                </ReactMarkdown>
+              </div>
             </div>
           ))
         )}

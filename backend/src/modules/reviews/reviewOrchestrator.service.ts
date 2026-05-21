@@ -65,7 +65,24 @@ export class ReviewOrchestratorService {
         })),
       });
 
-      const result = await this.geminiService.generateReview(context);
+      const fileInputs = detail.files.map((f) => ({
+        filename: f.filename,
+        status: f.status,
+        patch: f.patch,
+      }));
+
+      const [result, storyResult] = await Promise.all([
+        this.geminiService.generateReview(context),
+        this.geminiService.generatePRStory(fileInputs, {
+          title: detail.title,
+          author: detail.author,
+          body: detail.body,
+          baseBranch: detail.baseBranch,
+          headBranch: detail.headBranch,
+          additions: detail.additions,
+          deletions: detail.deletions,
+        }),
+      ]);
 
       const comments: Prisma.AICommentCreateManyInput[] = result.comments.map((c) => ({
         reviewId,
@@ -83,6 +100,7 @@ export class ReviewOrchestratorService {
             status: AIReviewStatus.COMPLETED,
             summary: result.summary,
             riskAnalysis: result.riskAnalysis,
+            storyWalkthrough: storyResult.storySteps,
           },
         }),
         prisma.aIComment.createMany({ data: comments }),

@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { AIComment, AIReview } from "../types";
+import { PRStoryTimeline } from "./PRStoryTimeline";
 
 const CATEGORY_LABELS: Record<string, string> = {
   ERROR_HANDLING: "Error handling",
@@ -15,6 +17,8 @@ const SEVERITY_STYLES: Record<string, string> = {
   info: "border-zinc-600 bg-zinc-800/50 text-zinc-300",
 };
 
+type ReviewViewMode = "review" | "story";
+
 interface AIReviewPanelProps {
   reviews: AIReview[];
   generating: boolean;
@@ -22,12 +26,41 @@ interface AIReviewPanelProps {
 }
 
 export function AIReviewPanel({ reviews, generating, onGenerate }: AIReviewPanelProps) {
+  const [viewMode, setViewMode] = useState<ReviewViewMode>("review");
   const latest = reviews[0];
+  const inProgress =
+    latest?.status === "PENDING" || latest?.status === "PROCESSING" || generating;
 
   return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
-        <h3 className="text-sm font-semibold">AI Review</h3>
+    <section className="flex-1 min-h-0 overflow-hidden flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-elevated)]">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold">AI Review</h3>
+          <div className="flex rounded-lg border border-[var(--color-border)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("review")}
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition ${
+                viewMode === "review"
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Review
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("story")}
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition ${
+                viewMode === "story"
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Story Mode
+            </button>
+          </div>
+        </div>
         <button
           type="button"
           onClick={onGenerate}
@@ -38,17 +71,33 @@ export function AIReviewPanel({ reviews, generating, onGenerate }: AIReviewPanel
         </button>
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="flex-1 overflow-y-auto space-y-4 p-4">
         {!latest ? (
           <p className="text-sm text-[var(--color-muted)]">
-            No AI review yet. Generate one to get a summary and actionable comments.
-          </p>
-        ) : latest.status === "PENDING" || latest.status === "PROCESSING" ? (
-          <p className="text-sm text-[var(--color-muted)] animate-pulse">
-            AI review in progress…
+            No AI review yet. Generate one to get a summary, risk analysis, and a guided story
+            walkthrough of the changed files.
           </p>
         ) : latest.status === "FAILED" ? (
           <p className="text-sm text-[var(--color-danger)]">{latest.errorMessage ?? "Review failed"}</p>
+        ) : inProgress ? (
+          <p className="text-sm text-[var(--color-muted)] animate-pulse">
+            AI review in progress… building review insights and story walkthrough.
+          </p>
+        ) : viewMode === "story" ? (
+          <>
+            <p className="text-xs text-[var(--color-muted)]">
+              Files ordered for understanding — not alphabetically. Switch to Review for risks and
+              comments.
+            </p>
+            {latest.storyWalkthrough ? (
+              <PRStoryTimeline storySteps={latest.storyWalkthrough} />
+            ) : (
+              <p className="text-sm text-[var(--color-muted)]">
+                Story walkthrough is not available for this review. Generate a new review to build
+                one.
+              </p>
+            )}
+          </>
         ) : (
           <>
             <div>

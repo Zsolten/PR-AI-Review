@@ -40,10 +40,18 @@ export interface AIComment {
   severity: string;
 }
 
+export interface StoryStep {
+  filename: string;
+  orderIndex: number;
+  logicalLayer: string;
+  narrative: string;
+}
+
 export interface AIReview {
   id: string;
   summary: string | null;
   riskAnalysis: string | null;
+  storyWalkthrough: StoryStep[] | null;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   errorMessage: string | null;
   comments: AIComment[];

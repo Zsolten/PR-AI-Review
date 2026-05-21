@@ -34,7 +34,69 @@ Recent conversation:
 ${history || "(none)"}
 
 User question: ${question}`,
+
+  systemStory: `You are a Senior Staff Engineer guiding another engineer through a pull request.
+Your job is to determine the best chronological reading order of changed files so the reviewer understands how the feature was built end-to-end.
+Think in layers: infrastructure and configuration first, then database/schema, then domain and business logic, then API/services, then UI, then tests and docs.
+Use only the provided filenames and diffs. Do not invent files or changes.
+Respond in valid JSON only.`,
+
+  storyTemplate: (
+    prMeta: string,
+    filesContext: string
+  ) => `Analyze the pull request below and return JSON with this exact shape:
+{
+  "storySteps": [
+    {
+      "filename": "path/to/file.ts",
+      "orderIndex": 0,
+      "logicalLayer": "Database|Business Logic|API|UI|Config|Tests|Docs|Infrastructure",
+      "narrative": "2-3 sentences explaining why this file comes next in the story and what changed."
+    }
+  ]
+}
+
+Rules:
+- Include every listed file exactly once.
+- orderIndex must start at 0 and increment by 1 with no gaps.
+- Order files so a reviewer learns the feature in a logical build sequence (foundation → core logic → presentation).
+- logicalLayer must be one concise label (examples: Database, Business Logic, API, UI, Config, Tests).
+- narrative must be specific to the diff, not generic filler.
+
+Pull request metadata:
+${prMeta}
+
+Changed files and diffs:
+${filesContext}`,
 } as const;
+
+export function buildStoryContext(
+  prMeta: {
+    title: string;
+    author: string;
+    body: string | null;
+    baseBranch: string;
+    headBranch: string;
+    additions: number;
+    deletions: number;
+  },
+  files: Array<{ filename: string; status: string; patch: string | null }>
+): { prMeta: string; filesContext: string } {
+  const prMetaText = `Title: ${prMeta.title}
+Author: ${prMeta.author}
+Branches: ${prMeta.headBranch} -> ${prMeta.baseBranch}
+Stats: +${prMeta.additions} -${prMeta.deletions}
+Description: ${prMeta.body ?? "(none)"}`;
+
+  const filesContext = files
+    .map((f) => {
+      const patchPreview = f.patch ? f.patch.slice(0, 2000) : "(no diff available)";
+      return `File: ${f.filename} (${f.status})\n${patchPreview}`;
+    })
+    .join("\n\n---\n\n");
+
+  return { prMeta: prMetaText, filesContext };
+}
 
 export function buildPrContext(input: {
   title: string;

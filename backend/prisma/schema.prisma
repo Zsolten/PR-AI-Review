@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Repository {
+  id            String        @id @default(cuid())
+  githubId      String        @unique
+  owner         String
+  name          String
+  fullName      String        @unique
+  defaultBranch String        @default("main")
+  webhookSecret String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  pullRequests  PullRequest[]
+
+  @@index([owner, name])
+}
+
+model PullRequest {
+  id           String            @id @default(cuid())
+  githubId     String
+  number       Int
+  title        String
+  body         String?
+  state        String
+  author       String
+  baseBranch   String
+  headBranch   String
+  additions    Int               @default(0)
+  deletions    Int               @default(0)
+  changedFiles Int               @default(0)
+  htmlUrl      String?
+  repositoryId String
+  repository   Repository        @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  files        PullRequestFile[]
+  reviews      AIReview[]
+  chatMessages ChatMessage[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state])
+}
+
+model PullRequestFile {
+  id            String      @id @default(cuid())
+  filename      String
+  status        String
+  additions     Int         @default(0)
+  deletions     Int         @default(0)
+  changes       Int         @default(0)
+  patch         String?     @db.Text
+  pullRequestId String
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([pullRequestId, filename])
+}
+
+enum AIReviewStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AICommentCategory {
+  ERROR_HANDLING
+  BUG_RISK
+  READABILITY
+  SECURITY
+  PERFORMANCE
+  GENERAL
+}
+
+model AIReview {
+  id               String         @id @default(cuid())
+  summary          String?        @db.Text
+  riskAnalysis     String?        @db.Text
+  storyWalkthrough Json?
+  status           AIReviewStatus @default(PENDING)
+  errorMessage     String?
+  pullRequestId    String
+  pullRequest      PullRequest    @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  comments         AIComment[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([pullRequestId, createdAt])
+}
+
+model AIComment {
+  id        String            @id @default(cuid())
+  category  AICommentCategory
+  file      String?
+  line      Int?
+  message   String            @db.Text
+  severity  String            @default("info")
+  reviewId  String
+  review    AIReview          @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+
+  @@index([reviewId])
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  role          String
+  content       String      @db.Text
+  pullRequestId String
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@index([pullRequestId, createdAt])
+}

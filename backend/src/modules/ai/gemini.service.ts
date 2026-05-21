@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Env } from "../../config/env.js";
-import { AI_PROMPTS } from "./prompts.js";
-import type { ReviewLLMResult } from "./types.js";
+import { AI_PROMPTS, buildStoryContext } from "./prompts.js";
+import type { ReviewLLMResult, StoryFileInput, StoryLLMResult } from "./types.js";
+import { validateStoryLLMResult } from "./story.utils.js";
 import { BadRequestError } from "../../utils/errors.js";
 import { parseJsonResponse } from "../../utils/parseJsonResponse.js";
 
@@ -42,6 +43,62 @@ export class GeminiService {
     }
 
     return parseJsonResponse<ReviewLLMResult>(text);
+  }
+
+  async generatePRStory(
+    files: StoryFileInput[],
+    prMeta?: {
+      title: string;
+      author: string;
+      body: string | null;
+      baseBranch: string;
+      headBranch: string;
+      additions: number;
+      deletions: number;
+    }
+  ): Promise<StoryLLMResult> {
+    if (files.length === 0) {
+      throw new Error("Cannot generate PR story without changed files");
+    }
+
+    try {
+      const client = this.requireClient();
+      const model = client.getGenerativeModel({
+        model: this.env.GEMINI_MODEL,
+        systemInstruction: AI_PROMPTS.systemStory,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const meta = prMeta ?? {
+        title: "Pull request",
+        author: "unknown",
+        body: null,
+        baseBranch: "main",
+        headBranch: "feature",
+        additions: 0,
+        deletions: 0,
+      };
+
+      const { prMeta: prMetaText, filesContext } = buildStoryContext(meta, files);
+      const result = await model.generateContent(
+        AI_PROMPTS.storyTemplate(prMetaText, filesContext)
+      );
+      const text = result.response.text();
+
+      if (!text) {
+        throw new Error("Empty story response from Gemini");
+      }
+
+      const parsed = parseJsonResponse<unknown>(text);
+      return validateStoryLLMResult(parsed);
+    } catch (error) {
+      if (error instanceof BadRequestError) throw error;
+      const message = error instanceof Error ? error.message : "Gemini story request failed";
+      throw new Error(`PR story generation failed: ${message}`);
+    }
   }
 
   async chat(context: string, question: string, history: string): Promise<string> {
