@@ -55,7 +55,8 @@ export class GeminiService {
       headBranch: string;
       additions: number;
       deletions: number;
-    }
+    },
+    teamRules: string[] = []
   ): Promise<StoryLLMResult> {
     if (files.length === 0) {
       throw new Error("Cannot generate PR story without changed files");
@@ -84,7 +85,7 @@ export class GeminiService {
 
       const { prMeta: prMetaText, filesContext } = buildStoryContext(meta, files);
       const result = await model.generateContent(
-        AI_PROMPTS.storyTemplate(prMetaText, filesContext)
+        AI_PROMPTS.storyTemplate(prMetaText, filesContext, teamRules)
       );
       const text = result.response.text();
 
@@ -93,7 +94,7 @@ export class GeminiService {
       }
 
       const parsed = parseJsonResponse<unknown>(text);
-      return validateStoryLLMResult(parsed);
+      return validateStoryLLMResult(parsed, teamRules);
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
       const message = error instanceof Error ? error.message : "Gemini story request failed";

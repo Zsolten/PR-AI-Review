@@ -27,7 +27,7 @@ export function ChatPanel({ messages, onSend, sending, error }: ChatPanelProps) 
 
   return (
     <section className="flex flex-col h-full min-h-[320px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-      <div className="border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-elevated)]">
+      <div className="shrink-0 flex h-[60px] items-center border-b border-[var(--color-border)] px-4 bg-[var(--color-surface-elevated)]">
         <h3 className="text-sm font-semibold">Ask about this PR</h3>
       </div>
 

@@ -10,6 +10,15 @@ const registerSchema = z.object({
 
 const prStateSchema = z.enum(["open", "closed", "all"]);
 
+const teamRuleCreateSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+
+const teamRuleUpdateSchema = z.object({
+  content: z.string().min(1).max(2000).optional(),
+  enabled: z.boolean().optional(),
+});
+
 export function repositoriesRoutes(container: AppContainer) {
   const router = Router();
 
@@ -56,6 +65,44 @@ export function repositoriesRoutes(container: AppContainer) {
         state
       );
       res.json(prs);
+    })
+  );
+
+  router.get(
+    "/:id/team-rules",
+    asyncHandler(async (req, res) => {
+      const rules = await container.teamRulesService.listRules(req.params.id);
+      res.json(rules);
+    })
+  );
+
+  router.post(
+    "/:id/team-rules",
+    asyncHandler(async (req, res) => {
+      const { content } = teamRuleCreateSchema.parse(req.body);
+      const rule = await container.teamRulesService.createRule(req.params.id, content);
+      res.status(201).json(rule);
+    })
+  );
+
+  router.patch(
+    "/:id/team-rules/:ruleId",
+    asyncHandler(async (req, res) => {
+      const data = teamRuleUpdateSchema.parse(req.body);
+      const rule = await container.teamRulesService.updateRule(
+        req.params.id,
+        req.params.ruleId,
+        data
+      );
+      res.json(rule);
+    })
+  );
+
+  router.delete(
+    "/:id/team-rules/:ruleId",
+    asyncHandler(async (req, res) => {
+      await container.teamRulesService.deleteRule(req.params.id, req.params.ruleId);
+      res.status(204).send();
     })
   );
 

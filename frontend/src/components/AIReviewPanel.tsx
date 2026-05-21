@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AIComment, AIReview } from "../types";
 import { PRStoryTimeline } from "./PRStoryTimeline";
+import { TeamRuleFindings } from "./TeamRuleFindings";
 
 const CATEGORY_LABELS: Record<string, string> = {
   ERROR_HANDLING: "Error handling",
@@ -23,9 +24,12 @@ interface AIReviewPanelProps {
   reviews: AIReview[];
   generating: boolean;
   onGenerate: () => void;
+  activePanelTab: "review" | "files";
+  onTabChange: (tab: "review" | "files") => void;
+  filesCount: number;
 }
 
-export function AIReviewPanel({ reviews, generating, onGenerate }: AIReviewPanelProps) {
+export function AIReviewPanel({ reviews, generating, onGenerate, activePanelTab, onTabChange, filesCount }: AIReviewPanelProps) {
   const [viewMode, setViewMode] = useState<ReviewViewMode>("review");
   const latest = reviews[0];
   const inProgress =
@@ -33,9 +37,34 @@ export function AIReviewPanel({ reviews, generating, onGenerate }: AIReviewPanel
 
   return (
     <section className="flex-1 min-h-0 overflow-hidden flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-elevated)]">
+      <div className="shrink-0 flex h-[60px] items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 bg-[var(--color-surface-elevated)]">
         <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold">AI Review</h3>
+          <div className="flex rounded-lg border border-[var(--color-border)] p-0.5 bg-zinc-950/40">
+            <button
+              onClick={() => onTabChange("review")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                activePanelTab === "review"
+                  ? "bg-zinc-800 text-zinc-100 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              AI Review
+            </button>
+            <button
+              onClick={() => onTabChange("files")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                activePanelTab === "files"
+                  ? "bg-zinc-800 text-zinc-100 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Changed Files
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950/80 text-[9px]">
+                {filesCount}
+              </span>
+            </button>
+          </div>
+          <div className="h-5 w-px bg-[var(--color-border)] mx-1"></div>
           <div className="flex rounded-lg border border-[var(--color-border)] p-0.5">
             <button
               type="button"
@@ -86,11 +115,16 @@ export function AIReviewPanel({ reviews, generating, onGenerate }: AIReviewPanel
         ) : viewMode === "story" ? (
           <>
             <p className="text-xs text-[var(--color-muted)]">
-              Files ordered for understanding — not alphabetically. Switch to Review for risks and
-              comments.
+              Files ordered for understanding — not alphabetically. Team rules from the sidebar are
+              evaluated strictly against these diffs. Switch to Review for risks and comments.
             </p>
             {latest.storyWalkthrough ? (
-              <PRStoryTimeline storySteps={latest.storyWalkthrough} />
+              <>
+                {latest.storyWalkthrough.teamRuleFindings.length > 0 && (
+                  <TeamRuleFindings findings={latest.storyWalkthrough.teamRuleFindings} />
+                )}
+                <PRStoryTimeline storySteps={latest.storyWalkthrough.storySteps} />
+              </>
             ) : (
               <p className="text-sm text-[var(--color-muted)]">
                 Story walkthrough is not available for this review. Generate a new review to build

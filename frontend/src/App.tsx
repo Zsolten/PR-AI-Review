@@ -5,6 +5,7 @@ import { ConnectRepoModal } from "./components/ConnectRepoModal";
 import { AIReviewPanel } from "./components/AIReviewPanel";
 import { ChangedFilesPanel } from "./components/ChangedFilesPanel";
 import { ChatPanel } from "./components/ChatPanel";
+import { TeamMemoryPanel } from "./components/TeamMemoryPanel";
 import { usePolling } from "./hooks/usePolling";
 import type { ChatMessage, PullRequestDetail, PullRequestListItem, Repository } from "./types";
 
@@ -218,23 +219,27 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        repositories={repositories}
-        selectedRepoId={selectedRepoId}
-        pullRequests={pullRequests}
-        selectedPrId={selectedPrId}
-        prFilter={prFilter}
-        onPrFilterChange={setPrFilter}
-        onSelectRepo={setSelectedRepoId}
-        onSelectPr={setSelectedPrId}
-        onSync={handleSync}
-        loading={loading}
-        syncError={syncError}
-        lastSynced={lastSynced}
-      />
+      <div className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+        <Sidebar
+          repositories={repositories}
+          selectedRepoId={selectedRepoId}
+          pullRequests={pullRequests}
+          selectedPrId={selectedPrId}
+          prFilter={prFilter}
+          onPrFilterChange={setPrFilter}
+          onSelectRepo={setSelectedRepoId}
+          onSelectPr={setSelectedPrId}
+          onSync={handleSync}
+          loading={loading}
+          syncError={syncError}
+          lastSynced={lastSynced}
+          embedded
+        />
+        <TeamMemoryPanel repositoryId={selectedRepoId} />
+      </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
+        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-[var(--color-border)] pl-4 pr-6">
           <div>
             {prDetail ? (
               <>
@@ -297,8 +302,8 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden p-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-4 overflow-hidden pr-2 lg:col-span-2">
+          <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden py-3 pl-4 pr-6 lg:grid-cols-5">
+            <div className="flex flex-col gap-4 overflow-hidden lg:col-span-3">
               {prDetail.body && (
                 <section className="shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
@@ -308,48 +313,32 @@ export default function App() {
                 </section>
               )}
 
-              <div className="shrink-0 flex gap-2">
-                <button
-                  onClick={() => setActivePanelTab("review")}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                    activePanelTab === "review"
-                      ? "bg-zinc-800 border-zinc-600 text-zinc-100"
-                      : "border-[var(--color-border)] bg-zinc-950/40 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
-                  }`}
-                >
-                  AI Review
-                </button>
-                <button
-                  onClick={() => setActivePanelTab("files")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                    activePanelTab === "files"
-                      ? "bg-zinc-800 border-zinc-600 text-zinc-100"
-                      : "border-[var(--color-border)] bg-zinc-950/40 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
-                  }`}
-                >
-                  Changed Files
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950/80 text-[10px]">
-                    {prDetail.files.length}
-                  </span>
-                </button>
-              </div>
-
               {activePanelTab === "review" ? (
                 <AIReviewPanel
                   reviews={prDetail.reviews}
                   generating={generating || reviewInProgress}
                   onGenerate={handleGenerateReview}
+                  activePanelTab={activePanelTab}
+                  onTabChange={setActivePanelTab}
+                  filesCount={prDetail.files.length}
                 />
               ) : (
-                <ChangedFilesPanel files={prDetail.files} />
+                <ChangedFilesPanel 
+                  files={prDetail.files} 
+                  activePanelTab={activePanelTab}
+                  onTabChange={setActivePanelTab}
+                  filesCount={prDetail.files.length}
+                />
               )}
             </div>
-            <ChatPanel
-              messages={chatMessages}
-              onSend={handleChat}
-              sending={chatSending}
-              error={chatError}
-            />
+            <div className="lg:col-span-2 flex flex-col min-h-0">
+              <ChatPanel
+                messages={chatMessages}
+                onSend={handleChat}
+                sending={chatSending}
+                error={chatError}
+              />
+            </div>
           </div>
         )}
       </main>

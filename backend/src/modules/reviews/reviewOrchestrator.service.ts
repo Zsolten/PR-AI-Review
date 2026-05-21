@@ -4,6 +4,7 @@ import { NotFoundError } from "../../utils/errors.js";
 import { buildPrContext } from "../ai/prompts.js";
 import type { GeminiService } from "../ai/gemini.service.js";
 import type { PullRequestService } from "../pullRequests/pullRequest.service.js";
+import type { TeamRulesService } from "../teamRules/teamRules.service.js";
 
 const CATEGORY_MAP: Record<string, AICommentCategory> = {
   ERROR_HANDLING: AICommentCategory.ERROR_HANDLING,
@@ -17,7 +18,8 @@ const CATEGORY_MAP: Record<string, AICommentCategory> = {
 export class ReviewOrchestratorService {
   constructor(
     private geminiService: GeminiService,
-    private pullRequestService: PullRequestService
+    private pullRequestService: PullRequestService,
+    private teamRulesService: TeamRulesService
   ) {}
 
   async generateReviewAsync(pullRequestId: string): Promise<{ reviewId: string }> {
@@ -71,17 +73,25 @@ export class ReviewOrchestratorService {
         patch: f.patch,
       }));
 
+      const teamRules = await this.teamRulesService.listEnabledRules(
+        detail.repositoryId
+      );
+
       const [result, storyResult] = await Promise.all([
         this.geminiService.generateReview(context),
-        this.geminiService.generatePRStory(fileInputs, {
-          title: detail.title,
-          author: detail.author,
-          body: detail.body,
-          baseBranch: detail.baseBranch,
-          headBranch: detail.headBranch,
-          additions: detail.additions,
-          deletions: detail.deletions,
-        }),
+        this.geminiService.generatePRStory(
+          fileInputs,
+          {
+            title: detail.title,
+            author: detail.author,
+            body: detail.body,
+            baseBranch: detail.baseBranch,
+            headBranch: detail.headBranch,
+            additions: detail.additions,
+            deletions: detail.deletions,
+          },
+          teamRules
+        ),
       ]);
 
       const comments: Prisma.AICommentCreateManyInput[] = result.comments.map((c) => ({
@@ -100,7 +110,10 @@ export class ReviewOrchestratorService {
             status: AIReviewStatus.COMPLETED,
             summary: result.summary,
             riskAnalysis: result.riskAnalysis,
-            storyWalkthrough: storyResult.storySteps,
+            storyWalkthrough: {
+              storySteps: storyResult.storySteps,
+              teamRuleFindings: storyResult.teamRuleFindings,
+            },
           },
         }),
         prisma.aIComment.createMany({ data: comments }),

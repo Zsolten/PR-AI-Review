@@ -47,11 +47,34 @@ export interface StoryStep {
   narrative: string;
 }
 
+export type RuleComplianceStatus = "pass" | "violation" | "needs_review";
+
+export interface TeamRuleFinding {
+  rule: string;
+  status: RuleComplianceStatus;
+  relatedFiles: string[];
+  evidence: string;
+}
+
+export interface StoryWalkthrough {
+  storySteps: StoryStep[];
+  teamRuleFindings: TeamRuleFinding[];
+}
+
+export interface TeamRule {
+  id: string;
+  content: string;
+  enabled: boolean;
+  repositoryId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AIReview {
   id: string;
   summary: string | null;
   riskAnalysis: string | null;
-  storyWalkthrough: StoryStep[] | null;
+  storyWalkthrough: StoryWalkthrough | null;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   errorMessage: string | null;
   comments: AIComment[];

@@ -38,14 +38,41 @@ User question: ${question}`,
   systemStory: `You are a Senior Staff Engineer guiding another engineer through a pull request.
 Your job is to determine the best chronological reading order of changed files so the reviewer understands how the feature was built end-to-end.
 Think in layers: infrastructure and configuration first, then database/schema, then domain and business logic, then API/services, then UI, then tests and docs.
+When team rules are provided, you MUST strictly evaluate every changed file and diff against each rule. Do not assume compliance without evidence from the diff.
 Use only the provided filenames and diffs. Do not invent files or changes.
 Respond in valid JSON only.`,
 
   storyTemplate: (
     prMeta: string,
-    filesContext: string
-  ) => `Analyze the pull request below and return JSON with this exact shape:
-{
+    filesContext: string,
+    teamRules: string[]
+  ) => {
+    const hasTeamRules = teamRules.length > 0;
+    const teamRulesBlock = hasTeamRules
+      ? `Team rules (evaluate EVERY rule strictly against the diffs):
+${teamRules.map((r, i) => `${i + 1}. ${r}`).join("\n")}`
+      : "Team rules: (none configured)";
+
+    const jsonShape = hasTeamRules
+      ? `{
+  "storySteps": [
+    {
+      "filename": "path/to/file.ts",
+      "orderIndex": 0,
+      "logicalLayer": "Database|Business Logic|API|UI|Config|Tests|Docs|Infrastructure",
+      "narrative": "2-3 sentences explaining why this file comes next, what changed, and any team-rule implications visible in this file."
+    }
+  ],
+  "teamRuleFindings": [
+    {
+      "rule": "exact team rule text from the list above",
+      "status": "pass|violation|needs_review",
+      "relatedFiles": ["files where evidence was found"],
+      "evidence": "specific evidence from diffs; cite filenames and what changed"
+    }
+  ]
+}`
+      : `{
   "storySteps": [
     {
       "filename": "path/to/file.ts",
@@ -53,21 +80,36 @@ Respond in valid JSON only.`,
       "logicalLayer": "Database|Business Logic|API|UI|Config|Tests|Docs|Infrastructure",
       "narrative": "2-3 sentences explaining why this file comes next in the story and what changed."
     }
-  ]
-}
+  ],
+  "teamRuleFindings": []
+}`;
+
+    const teamRuleInstructions = hasTeamRules
+      ? `- teamRuleFindings MUST include one entry per team rule (use the exact rule text).
+- status must be "pass" only when the diff clearly satisfies the rule; use "violation" when the diff breaks the rule; use "needs_review" when the diff is insufficient to decide.
+- evidence must quote or paraphrase concrete diff details, not generic statements.
+- Mention relevant rule impacts in storyStep narratives when applicable.`
+      : `- teamRuleFindings must be an empty array.`;
+
+    return `Analyze the pull request below and return JSON with this exact shape:
+${jsonShape}
 
 Rules:
-- Include every listed file exactly once.
+- Include every listed file exactly once in storySteps.
 - orderIndex must start at 0 and increment by 1 with no gaps.
 - Order files so a reviewer learns the feature in a logical build sequence (foundation → core logic → presentation).
 - logicalLayer must be one concise label (examples: Database, Business Logic, API, UI, Config, Tests).
 - narrative must be specific to the diff, not generic filler.
+${teamRuleInstructions}
 
 Pull request metadata:
 ${prMeta}
 
+${teamRulesBlock}
+
 Changed files and diffs:
-${filesContext}`,
+${filesContext}`;
+  },
 } as const;
 
 export function buildStoryContext(

@@ -10,6 +10,8 @@ export interface ReviewLLMResult {
   }>;
 }
 
+export type RuleComplianceStatus = "pass" | "violation" | "needs_review";
+
 export interface StoryStep {
   filename: string;
   orderIndex: number;
@@ -17,8 +19,21 @@ export interface StoryStep {
   narrative: string;
 }
 
+export interface TeamRuleFinding {
+  rule: string;
+  status: RuleComplianceStatus;
+  relatedFiles: string[];
+  evidence: string;
+}
+
+export interface StoryWalkthroughPayload {
+  storySteps: StoryStep[];
+  teamRuleFindings: TeamRuleFinding[];
+}
+
 export interface StoryLLMResult {
   storySteps: StoryStep[];
+  teamRuleFindings: TeamRuleFinding[];
 }
 
 export interface StoryFileInput {

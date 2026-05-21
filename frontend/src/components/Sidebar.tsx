@@ -13,6 +13,7 @@ interface SidebarProps {
   loading?: boolean;
   syncError?: string | null;
   lastSynced?: number | null;
+  embedded?: boolean;
 }
 
 export function Sidebar({
@@ -28,15 +29,23 @@ export function Sidebar({
   loading,
   syncError,
   lastSynced,
+  embedded = false,
 }: SidebarProps) {
+  const Wrapper = embedded ? "div" : "aside";
+  const wrapperClass = embedded
+    ? "flex min-h-0 flex-1 flex-col"
+    : "flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)]";
+
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-      <div className="border-b border-[var(--color-border)] px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[var(--color-accent)]" />
-          <h1 className="text-sm font-semibold tracking-tight">PR Review AI</h1>
+    <Wrapper className={wrapperClass}>
+      <div className="flex h-[72px] shrink-0 items-center border-b border-[var(--color-border)] px-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-[var(--color-accent)]" />
+            <h1 className="text-sm font-semibold tracking-tight">PR Review AI</h1>
+          </div>
+          <p className="mt-0.5 text-xs text-[var(--color-muted)]">Repository-aware code review</p>
         </div>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">Repository-aware code review</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-3">
@@ -143,6 +152,6 @@ export function Sidebar({
           </>
         )}
       </div>
-    </aside>
+    </Wrapper>
   );
 }

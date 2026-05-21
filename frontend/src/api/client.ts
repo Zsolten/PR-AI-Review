@@ -3,7 +3,8 @@ import type {
   PullRequestDetail,
   PullRequestListItem,
   Repository,
-  StoryStep,
+  StoryWalkthrough,
+  TeamRule,
 } from "../types";
 
 const API_BASE =
@@ -22,22 +23,66 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(err.error ?? "Request failed");
   }
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }
 
-function parseStoryWalkthrough(data: unknown): StoryStep[] | null {
-  if (!Array.isArray(data)) return null;
-  const steps = data.filter((step): step is StoryStep => {
-    if (!step || typeof step !== "object") return false;
-    const s = step as Record<string, unknown>;
-    return (
-      typeof s.filename === "string" &&
-      typeof s.orderIndex === "number" &&
-      typeof s.logicalLayer === "string" &&
-      typeof s.narrative === "string"
-    );
-  });
-  return steps.length > 0 ? steps.sort((a, b) => a.orderIndex - b.orderIndex) : null;
+function parseStoryWalkthrough(data: unknown): StoryWalkthrough | null {
+  if (Array.isArray(data)) {
+    const steps = data.filter((step): step is StoryWalkthrough["storySteps"][number] => {
+      if (!step || typeof step !== "object") return false;
+      const s = step as Record<string, unknown>;
+      return (
+        typeof s.filename === "string" &&
+        typeof s.orderIndex === "number" &&
+        typeof s.logicalLayer === "string" &&
+        typeof s.narrative === "string"
+      );
+    });
+    return steps.length > 0
+      ? { storySteps: steps.sort((a, b) => a.orderIndex - b.orderIndex), teamRuleFindings: [] }
+      : null;
+  }
+
+  if (!data || typeof data !== "object") return null;
+  const payload = data as Record<string, unknown>;
+
+  const storySteps = Array.isArray(payload.storySteps)
+    ? payload.storySteps.filter((step): step is StoryWalkthrough["storySteps"][number] => {
+        if (!step || typeof step !== "object") return false;
+        const s = step as Record<string, unknown>;
+        return (
+          typeof s.filename === "string" &&
+          typeof s.orderIndex === "number" &&
+          typeof s.logicalLayer === "string" &&
+          typeof s.narrative === "string"
+        );
+      })
+    : [];
+
+  if (storySteps.length === 0) return null;
+
+  const teamRuleFindings = Array.isArray(payload.teamRuleFindings)
+    ? payload.teamRuleFindings.filter((f): f is StoryWalkthrough["teamRuleFindings"][number] => {
+        if (!f || typeof f !== "object") return false;
+        const finding = f as Record<string, unknown>;
+        return (
+          typeof finding.rule === "string" &&
+          typeof finding.status === "string" &&
+          Array.isArray(finding.relatedFiles) &&
+          finding.relatedFiles.every((file) => typeof file === "string") &&
+          typeof finding.evidence === "string"
+        );
+      })
+    : [];
+
+  return {
+    storySteps: storySteps.sort((a, b) => a.orderIndex - b.orderIndex),
+    teamRuleFindings,
+  };
 }
 
 function normalizeReview(review: AIReview & { storyWalkthrough?: unknown }): AIReview {
@@ -82,6 +127,30 @@ export const api = {
       `/api/repositories/${repositoryId}/pull-requests${query}`
     );
   },
+
+  listTeamRules: (repositoryId: string) =>
+    request<TeamRule[]>(`/api/repositories/${repositoryId}/team-rules`),
+
+  createTeamRule: (repositoryId: string, content: string) =>
+    request<TeamRule>(`/api/repositories/${repositoryId}/team-rules`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+
+  updateTeamRule: (
+    repositoryId: string,
+    ruleId: string,
+    data: { content?: string; enabled?: boolean }
+  ) =>
+    request<TeamRule>(`/api/repositories/${repositoryId}/team-rules/${ruleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteTeamRule: (repositoryId: string, ruleId: string) =>
+    request<void>(`/api/repositories/${repositoryId}/team-rules/${ruleId}`, {
+      method: "DELETE",
+    }),
 
   getPullRequest: async (id: string) =>
     normalizePullRequestDetail(await request<PullRequestDetail>(`/api/pull-requests/${id}`)),

@@ -83,22 +83,25 @@ async function main() {
           "This PR introduces JWT auth middleware and wires it into user routes. Overall direction is sound, but error handling and token validation need hardening before merge.",
         riskAnalysis:
           "- Missing token format validation may allow malformed headers\n- Unhandled exceptions in profile route could crash the process\n- No refresh/revocation strategy documented",
-        storyWalkthrough: [
-          {
-            filename: "src/middleware/auth.ts",
-            orderIndex: 0,
-            logicalLayer: "Business Logic",
-            narrative:
-              "Start with the auth middleware where tokens are parsed and validated. This is the security gate every protected route will rely on.",
-          },
-          {
-            filename: "src/routes/users.ts",
-            orderIndex: 1,
-            logicalLayer: "API",
-            narrative:
-              "Next, review the route wiring that applies the middleware to user endpoints. Here you can see how the new auth flow surfaces to API consumers.",
-          },
-        ],
+        storyWalkthrough: {
+          storySteps: [
+            {
+              filename: "src/middleware/auth.ts",
+              orderIndex: 0,
+              logicalLayer: "Business Logic",
+              narrative:
+                "Start with the auth middleware where tokens are parsed and validated. This is the security gate every protected route will rely on.",
+            },
+            {
+              filename: "src/routes/users.ts",
+              orderIndex: 1,
+              logicalLayer: "API",
+              narrative:
+                "Next, review the route wiring that applies the middleware to user endpoints. Here you can see how the new auth flow surfaces to API consumers.",
+            },
+          ],
+          teamRuleFindings: [],
+        },
       },
     });
 
@@ -133,6 +136,20 @@ async function main() {
           severity: "info",
         },
       ],
+    });
+  }
+
+  const existingTeamRule = await prisma.teamRule.findFirst({
+    where: { repositoryId: repo.id },
+  });
+  if (!existingTeamRule) {
+    await prisma.teamRule.create({
+      data: {
+        repositoryId: repo.id,
+        content:
+          "All authentication changes must validate Bearer token format before verification and must not throw raw errors from route handlers.",
+        enabled: true,
+      },
     });
   }
 
