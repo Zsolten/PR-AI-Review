@@ -114,12 +114,29 @@ export function AIReviewPanel({ reviews, generating, onGenerate, activePanelTab,
           </p>
         ) : viewMode === "story" ? (
           <>
-            <p className="text-xs text-[var(--color-muted)]">
-              Files ordered for understanding — not alphabetically. Team rules from the sidebar are
-              evaluated strictly against these diffs. Switch to Review for risks and comments.
-            </p>
             {latest.storyWalkthrough ? (
               <>
+                {latest.storyWalkthrough.relatedContext &&
+                  latest.storyWalkthrough.relatedContext.length > 0 && (
+                    <div className="rounded-xl border border-[var(--color-border)] bg-zinc-950/50 p-4">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                        Related codebase context (RAG)
+                      </h4>
+                      <ul className="mt-2 space-y-1">
+                        {latest.storyWalkthrough.relatedContext.map((r) => (
+                          <li
+                            key={r.path}
+                            className="font-mono text-[11px] text-zinc-300"
+                          >
+                            {r.path}
+                            <span className="ml-2 text-[var(--color-muted)]">
+                              {(r.similarity * 100).toFixed(0)}% match
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 {latest.storyWalkthrough.teamRuleFindings.length > 0 && (
                   <TeamRuleFindings findings={latest.storyWalkthrough.teamRuleFindings} />
                 )}
@@ -140,14 +157,51 @@ export function AIReviewPanel({ reviews, generating, onGenerate, activePanelTab,
               </h4>
               <p className="mt-2 text-sm leading-relaxed text-zinc-200">{latest.summary}</p>
             </div>
+            {latest.storyWalkthrough && latest.storyWalkthrough.teamRuleFindings?.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                  Team Rules
+                </h4>
+                <ul className="space-y-2">
+                  {latest.storyWalkthrough.teamRuleFindings.map((finding, idx) => {
+                    const isPass = finding.status === "pass";
+                    const isViol = finding.status === "violation";
+                    const statusClass = isPass
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                      : isViol
+                      ? "border-red-500/40 bg-red-500/10 text-red-300"
+                      : "border-amber-500/40 bg-amber-500/10 text-amber-200";
+
+                    return (
+                      <li
+                        key={idx}
+                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${statusClass}`}
+                      >
+                        <span className="truncate pr-4 font-medium opacity-90" title={finding.rule}>
+                          {finding.rule}
+                        </span>
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-80">
+                          {finding.status.replace("_", " ")}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             {latest.riskAnalysis && (
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
                   Risk analysis
                 </h4>
-                <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-zinc-300">
-                  {latest.riskAnalysis}
-                </pre>
+                <div className={`rounded-lg border px-3 py-2 text-sm ${SEVERITY_STYLES["warning"]}`}>
+                   <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {/* <span className="font-medium">Risk Analysis</span> */}
+                   </div>
+                   <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                     {latest.riskAnalysis}
+                   </pre>
+                </div>
               </div>
             )}
             <div>

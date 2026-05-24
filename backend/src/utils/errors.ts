@@ -22,3 +22,10 @@ export class BadRequestError extends AppError {
     this.name = "BadRequestError";
   }
 }
+
+export class RateLimitError extends AppError {
+  constructor(message: string) {
+    super(message, 429, "RATE_LIMIT");
+    this.name = "RateLimitError";
+  }
+}

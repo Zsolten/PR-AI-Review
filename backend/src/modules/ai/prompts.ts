@@ -1,10 +1,12 @@
+import type { RetrievedCodeContext } from "../rag/types.js";
+
 export const AI_PROMPTS = {
   systemReview: `You are a senior software engineer performing pull request reviews.
 Focus on practical, actionable feedback. Be concise and specific.
 Prioritize: error handling gaps, bug risks, readability, security, and performance.
 Respond in valid JSON only.`,
 
-  reviewTemplate: (context: string) => `Review this pull request and return JSON with this exact shape:
+  reviewTemplate: (context: string, relatedContextBlock = "") => `Review this pull request and return JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what changed and overall quality",
   "riskAnalysis": "bullet-style risks as a single string with newlines",
@@ -19,16 +21,22 @@ Respond in valid JSON only.`,
   ]
 }
 Provide 4-8 comments across different categories.
+When additional codebase context is provided, use it to judge architecture impact and missing integration points — do not claim files are absent if they appear in that context.
 
 Pull request context:
-${context}`,
+${context}
+${relatedContextBlock}`,
 
   chatSystem: `You are an AI assistant helping developers understand pull requests.
-Answer based only on the provided PR context. Be clear and helpful.
+Answer using the PR diff context and any RELATED CODEBASE CONTEXT from repository memory (RAG).
+Reference related files when explaining architecture, dependencies, or how changes fit the wider codebase.
+Do not invent files or code outside what is provided. Be clear and helpful.
 If unsure, say what additional context would help.`,
 
-  chatUser: (context: string, question: string, history: string) => `PR Context:
+  chatUser: (context: string, question: string, history: string, relatedContextBlock = "") =>
+    `PR Context:
 ${context}
+${relatedContextBlock}
 
 Recent conversation:
 ${history || "(none)"}
@@ -39,13 +47,15 @@ User question: ${question}`,
 Your job is to determine the best chronological reading order of changed files so the reviewer understands how the feature was built end-to-end.
 Think in layers: infrastructure and configuration first, then database/schema, then domain and business logic, then API/services, then UI, then tests and docs.
 When team rules are provided, you MUST strictly evaluate every changed file and diff against each rule. Do not assume compliance without evidence from the diff.
-Use only the provided filenames and diffs. Do not invent files or changes.
+When RELATED CODEBASE CONTEXT is provided, reference those existing files explicitly to explain how this PR fits the wider architecture (callers, shared types, data layer, etc.).
+Use only the provided filenames, diffs, and related context. Do not invent files or changes.
 Respond in valid JSON only.`,
 
   storyTemplate: (
     prMeta: string,
     filesContext: string,
-    teamRules: string[]
+    teamRules: string[],
+    relatedContextBlock = ""
   ) => {
     const hasTeamRules = teamRules.length > 0;
     const teamRulesBlock = hasTeamRules
@@ -108,9 +118,28 @@ ${prMeta}
 ${teamRulesBlock}
 
 Changed files and diffs:
-${filesContext}`;
+${filesContext}
+${relatedContextBlock}`;
   },
 } as const;
+
+/** Formats pgvector-retrieved chunks for injection into Gemini prompts. */
+export function formatRelatedContextBlock(
+  related: RetrievedCodeContext[]
+): string {
+  if (related.length === 0) return "";
+
+  const blocks = related.map((r) => {
+    const preview = r.content.slice(0, 2500);
+    const truncated = r.content.length > preview.length ? "\n...(truncated)" : "";
+    return `### ${r.path} (similarity ${r.similarity.toFixed(3)})\n${preview}${truncated}`;
+  });
+
+  return `
+
+ADDITIONAL CODEBASE CONTEXT (indexed repository files NOT in this PR diff — use for architecture-aware answers):
+${blocks.join("\n\n")}`;
+}
 
 export function buildStoryContext(
   prMeta: {

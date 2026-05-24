@@ -5,9 +5,26 @@ export interface Repository {
   name: string;
   fullName: string;
   defaultBranch: string;
+  indexedAt: string | null;
+  indexBranch: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: { pullRequests: number };
+}
+
+export interface RepositoryIndexResult {
+  repositoryId: string;
+  branch: string;
+  filesProcessed: number;
+  chunksStored: number;
+  skippedPaths: number;
+  quotaLimited?: boolean;
+  message?: string;
+}
+
+export interface RelatedContextSummary {
+  path: string;
+  similarity: number;
 }
 
 export interface PullRequestListItem {
@@ -59,6 +76,7 @@ export interface TeamRuleFinding {
 export interface StoryWalkthrough {
   storySteps: StoryStep[];
   teamRuleFindings: TeamRuleFinding[];
+  relatedContext?: RelatedContextSummary[];
 }
 
 export interface TeamRule {

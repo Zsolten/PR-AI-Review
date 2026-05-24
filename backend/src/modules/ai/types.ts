@@ -26,9 +26,16 @@ export interface TeamRuleFinding {
   evidence: string;
 }
 
+/** Files retrieved via pgvector similarity (not in the PR diff). */
+export interface RelatedContextSummary {
+  path: string;
+  similarity: number;
+}
+
 export interface StoryWalkthroughPayload {
   storySteps: StoryStep[];
   teamRuleFindings: TeamRuleFinding[];
+  relatedContext?: RelatedContextSummary[];
 }
 
 export interface StoryLLMResult {

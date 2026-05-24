@@ -15,6 +15,21 @@ const envSchema = z.object({
     .optional()
     .transform((v) => (v?.trim() ? v.trim() : undefined)),
   GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
+  /** Gemini API embedding model (text-embedding-004 is not available on embedContent). */
+  GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
+  /** Output size; must match pgvector column vector(N) and outputDimensionality. */
+  RAG_EMBEDDING_DIMENSION: z.coerce.number().default(768),
+  /** Free-tier friendly default; raise via env for paid keys / full repos. */
+  RAG_MAX_INDEX_FILES: z.coerce.number().default(20),
+  RAG_MAX_CHUNKS_PER_FILE: z.coerce.number().default(2),
+  /** Hard cap on embed API calls per index run (free tier ~100–1500 RPM depending on model). */
+  RAG_MAX_TOTAL_CHUNKS: z.coerce.number().default(35),
+  RAG_CHUNK_SIZE: z.coerce.number().default(2400),
+  RAG_CHUNK_OVERLAP: z.coerce.number().default(200),
+  RAG_EMBED_DELAY_MS: z.coerce.number().default(1200),
+  RAG_EMBED_MAX_RETRIES: z.coerce.number().default(5),
+  /** Top similar chunks/files injected into Story Mode (deduped by path). */
+  RAG_TOP_K: z.coerce.number().default(3),
   AI_TOOLS_ENABLED: z
     .string()
     .optional()

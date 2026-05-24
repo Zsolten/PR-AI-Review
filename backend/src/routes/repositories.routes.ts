@@ -40,6 +40,14 @@ export function repositoriesRoutes(container: AppContainer) {
   );
 
   router.post(
+    "/:id/index",
+    asyncHandler(async (req, res) => {
+      const result = await container.ragIngestionService.indexRepository(req.params.id);
+      res.json(result);
+    })
+  );
+
+  router.post(
     "/:id/sync",
     asyncHandler(async (req, res) => {
       const state = prStateSchema.parse(
