@@ -3,6 +3,7 @@ import type {
   PullRequestDetail,
   PullRequestListItem,
   Repository,
+  RepositoryIndexResult,
   StoryWalkthrough,
   TeamRule,
 } from "../types";
@@ -79,9 +80,18 @@ function parseStoryWalkthrough(data: unknown): StoryWalkthrough | null {
       })
     : [];
 
+  const relatedContext = Array.isArray(payload.relatedContext)
+    ? payload.relatedContext.filter((r): r is NonNullable<StoryWalkthrough["relatedContext"]>[number] => {
+        if (!r || typeof r !== "object") return false;
+        const item = r as Record<string, unknown>;
+        return typeof item.path === "string" && typeof item.similarity === "number";
+      })
+    : undefined;
+
   return {
     storySteps: storySteps.sort((a, b) => a.orderIndex - b.orderIndex),
     teamRuleFindings,
+    relatedContext,
   };
 }
 
@@ -150,6 +160,11 @@ export const api = {
   deleteTeamRule: (repositoryId: string, ruleId: string) =>
     request<void>(`/api/repositories/${repositoryId}/team-rules/${ruleId}`, {
       method: "DELETE",
+    }),
+
+  indexRepository: (repositoryId: string) =>
+    request<RepositoryIndexResult>(`/api/repositories/${repositoryId}/index`, {
+      method: "POST",
     }),
 
   getPullRequest: async (id: string) =>

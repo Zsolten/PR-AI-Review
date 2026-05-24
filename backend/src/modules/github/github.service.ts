@@ -79,4 +79,67 @@ export class GitHubService {
     });
     return data as GitHubPullRequestFile[];
   }
+
+  /**
+   * Recursively lists blob paths on a branch (used for RAG ingestion).
+   * GitHub tree API is shallow per call; we paginate and filter to blobs only.
+   */
+  async listRepositoryFilePaths(
+    repo: GitHubRepositoryInput,
+    branch: string,
+    maxFiles: number
+  ): Promise<string[]> {
+    const client = this.requireClient();
+    const { data: refData } = await client.git.getRef({
+      owner: repo.owner,
+      repo: repo.name,
+      ref: `heads/${branch}`,
+    });
+    const commitSha = refData.object.sha;
+
+    const { data: treeData } = await client.git.getTree({
+      owner: repo.owner,
+      repo: repo.name,
+      tree_sha: commitSha,
+      recursive: "1",
+    });
+
+    const paths: string[] = [];
+    for (const entry of treeData.tree) {
+      if (entry.type !== "blob" || !entry.path) continue;
+      paths.push(entry.path);
+      if (paths.length >= maxFiles) break;
+    }
+
+    return paths;
+  }
+
+  /** Fetches raw file content at a path on the given branch (base64-decoded). */
+  async getFileContent(
+    repo: GitHubRepositoryInput,
+    path: string,
+    branch: string
+  ): Promise<string | null> {
+    const client = this.requireClient();
+    try {
+      const { data } = await client.repos.getContent({
+        owner: repo.owner,
+        repo: repo.name,
+        path,
+        ref: branch,
+      });
+
+      if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
+        return null;
+      }
+
+      if (typeof data.content !== "string") return null;
+      const encoding = data.encoding ?? "base64";
+      if (encoding !== "base64") return null;
+
+      return Buffer.from(data.content, "base64").toString("utf8");
+    } catch {
+      return null;
+    }
+  }
 }

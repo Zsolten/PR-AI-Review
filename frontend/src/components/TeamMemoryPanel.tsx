@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { TeamRule } from "../types";
+import type { Repository, TeamRule } from "../types";
 
 interface TeamMemoryPanelProps {
   repositoryId: string | null;
+  repository: Repository | null;
+  onRepositoryIndexed?: () => void;
 }
 
-export function TeamMemoryPanel({ repositoryId }: TeamMemoryPanelProps) {
+export function TeamMemoryPanel({
+  repositoryId,
+  repository,
+  onRepositoryIndexed,
+}: TeamMemoryPanelProps) {
   const [rules, setRules] = useState<TeamRule[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [indexing, setIndexing] = useState(false);
+  const [indexMessage, setIndexMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
 
@@ -72,6 +80,28 @@ export function TeamMemoryPanel({ repositoryId }: TeamMemoryPanelProps) {
     }
   };
 
+  const handleIndex = async () => {
+    if (!repositoryId) return;
+    setIndexing(true);
+    setError(null);
+    setIndexMessage(null);
+    try {
+      const result = await api.indexRepository(repositoryId);
+      const summary = `Indexed ${result.filesProcessed} files (${result.chunksStored} chunks) on ${result.branch}.`;
+      setIndexMessage(result.message ? `${summary} ${result.message}` : summary);
+      if (result.quotaLimited) {
+        setError(
+          "Partial index: Gemini free-tier quota reached. RAG still works with indexed files; retry later or lower scope in .env."
+        );
+      }
+      onRepositoryIndexed?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to index repository");
+    } finally {
+      setIndexing(false);
+    }
+  };
+
   if (!repositoryId) {
     return (
       <section className="shrink-0 border-t border-[var(--color-border)] px-3 py-3">
@@ -90,13 +120,40 @@ export function TeamMemoryPanel({ repositoryId }: TeamMemoryPanelProps) {
         className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-zinc-800/40"
       >
         <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-          Team Rules
+          Team Memory
         </span>
         <span className="text-[10px] text-zinc-500">{expanded ? "−" : "+"}</span>
       </button>
 
       {expanded && (
         <div className="space-y-3 px-3 pb-3">
+          <div className="rounded-lg border border-[var(--color-border)] bg-zinc-900/50 px-2 py-2">
+            <p className="text-[10px] font-medium text-zinc-300">Repository memory (RAG)</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-[var(--color-muted)]">
+              Index the default branch into pgvector so reviews, Story Mode, and chat can reference
+              related files outside the PR diff.
+            </p>
+            {repository?.indexedAt ? (
+              <p className="mt-1.5 text-[10px] text-emerald-400/90">
+                Last indexed: {new Date(repository.indexedAt).toLocaleString()}
+                {repository.indexBranch ? ` (${repository.indexBranch})` : ""}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[10px] text-amber-300/90">Not indexed yet.</p>
+            )}
+            {indexMessage && (
+              <p className="mt-1.5 text-[10px] text-emerald-400/90">{indexMessage}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleIndex()}
+              disabled={indexing}
+              className="mt-2 w-full rounded-lg border border-[var(--color-border)] bg-zinc-800 px-2 py-1.5 text-[10px] font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            >
+              {indexing ? "Indexing…" : "Index repository"}
+            </button>
+          </div>
+
           <p className="text-[10px] leading-relaxed text-[var(--color-muted)]">
             Plain-English rules applied strictly during Story Mode generation for this repository.
           </p>

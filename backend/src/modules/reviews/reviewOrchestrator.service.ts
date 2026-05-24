@@ -5,6 +5,7 @@ import { buildPrContext } from "../ai/prompts.js";
 import type { GeminiService } from "../ai/gemini.service.js";
 import type { PullRequestService } from "../pullRequests/pullRequest.service.js";
 import type { TeamRulesService } from "../teamRules/teamRules.service.js";
+import type { RagRetrievalService } from "../rag/retrieval.service.js";
 
 const CATEGORY_MAP: Record<string, AICommentCategory> = {
   ERROR_HANDLING: AICommentCategory.ERROR_HANDLING,
@@ -19,7 +20,8 @@ export class ReviewOrchestratorService {
   constructor(
     private geminiService: GeminiService,
     private pullRequestService: PullRequestService,
-    private teamRulesService: TeamRulesService
+    private teamRulesService: TeamRulesService,
+    private ragRetrievalService: RagRetrievalService
   ) {}
 
   async generateReviewAsync(pullRequestId: string): Promise<{ reviewId: string }> {
@@ -77,8 +79,10 @@ export class ReviewOrchestratorService {
         detail.repositoryId
       );
 
+      const relatedContext = await this.retrieveRagContext(detail);
+
       const [result, storyResult] = await Promise.all([
-        this.geminiService.generateReview(context),
+        this.geminiService.generateReview(context, relatedContext),
         this.geminiService.generatePRStory(
           fileInputs,
           {
@@ -90,7 +94,8 @@ export class ReviewOrchestratorService {
             additions: detail.additions,
             deletions: detail.deletions,
           },
-          teamRules
+          teamRules,
+          relatedContext
         ),
       ]);
 
@@ -113,6 +118,10 @@ export class ReviewOrchestratorService {
             storyWalkthrough: {
               storySteps: storyResult.storySteps,
               teamRuleFindings: storyResult.teamRuleFindings,
+              relatedContext: relatedContext.map((r) => ({
+                path: r.path,
+                similarity: r.similarity,
+              })),
             },
           },
         }),
@@ -166,8 +175,10 @@ export class ReviewOrchestratorService {
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
 
+    const relatedContext = await this.retrieveRagContext(detail, message);
+
     try {
-      const reply = await this.geminiService.chat(context, message, history);
+      const reply = await this.geminiService.chat(context, message, history, relatedContext);
 
       await prisma.chatMessage.create({
         data: { pullRequestId, role: "assistant", content: reply },
@@ -178,5 +189,28 @@ export class ReviewOrchestratorService {
       const errMsg = error instanceof Error ? error.message : "Chat failed";
       throw new Error(errMsg);
     }
+  }
+
+  /** RAG: embed PR context → pgvector similarity → top related indexed files. */
+  private async retrieveRagContext(
+    detail: {
+      repositoryId: string;
+      title: string;
+      body: string | null;
+      files: Array<{ filename: string; status: string; patch: string | null }>;
+    },
+    userQuery?: string
+  ) {
+    return this.ragRetrievalService.retrieveRelatedContext({
+      repositoryId: detail.repositoryId,
+      title: detail.title,
+      body: detail.body,
+      userQuery,
+      changedFiles: detail.files.map((f) => ({
+        filename: f.filename,
+        status: f.status,
+        patch: f.patch,
+      })),
+    });
   }
 }

@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Env } from "../../config/env.js";
-import { AI_PROMPTS, buildStoryContext } from "./prompts.js";
+import { AI_PROMPTS, buildStoryContext, formatRelatedContextBlock } from "./prompts.js";
 import type { ReviewLLMResult, StoryFileInput, StoryLLMResult } from "./types.js";
+import type { RetrievedCodeContext } from "../rag/types.js";
 import { validateStoryLLMResult } from "./story.utils.js";
 import { BadRequestError } from "../../utils/errors.js";
 import { parseJsonResponse } from "../../utils/parseJsonResponse.js";
@@ -24,7 +25,10 @@ export class GeminiService {
     return this.client;
   }
 
-  async generateReview(context: string): Promise<ReviewLLMResult> {
+  async generateReview(
+    context: string,
+    relatedContext: RetrievedCodeContext[] = []
+  ): Promise<ReviewLLMResult> {
     const client = this.requireClient();
     const model = client.getGenerativeModel({
       model: this.env.GEMINI_MODEL,
@@ -35,7 +39,10 @@ export class GeminiService {
       },
     });
 
-    const result = await model.generateContent(AI_PROMPTS.reviewTemplate(context));
+    const relatedBlock = formatRelatedContextBlock(relatedContext);
+    const result = await model.generateContent(
+      AI_PROMPTS.reviewTemplate(context, relatedBlock)
+    );
     const text = result.response.text();
 
     if (!text) {
@@ -56,7 +63,8 @@ export class GeminiService {
       additions: number;
       deletions: number;
     },
-    teamRules: string[] = []
+    teamRules: string[] = [],
+    relatedContext: RetrievedCodeContext[] = []
   ): Promise<StoryLLMResult> {
     if (files.length === 0) {
       throw new Error("Cannot generate PR story without changed files");
@@ -84,8 +92,9 @@ export class GeminiService {
       };
 
       const { prMeta: prMetaText, filesContext } = buildStoryContext(meta, files);
+      const relatedBlock = formatRelatedContextBlock(relatedContext);
       const result = await model.generateContent(
-        AI_PROMPTS.storyTemplate(prMetaText, filesContext, teamRules)
+        AI_PROMPTS.storyTemplate(prMetaText, filesContext, teamRules, relatedBlock)
       );
       const text = result.response.text();
 
@@ -102,7 +111,12 @@ export class GeminiService {
     }
   }
 
-  async chat(context: string, question: string, history: string): Promise<string> {
+  async chat(
+    context: string,
+    question: string,
+    history: string,
+    relatedContext: RetrievedCodeContext[] = []
+  ): Promise<string> {
     try {
       const client = this.requireClient();
       const model = client.getGenerativeModel({
@@ -113,8 +127,9 @@ export class GeminiService {
         },
       });
 
+      const relatedBlock = formatRelatedContextBlock(relatedContext);
       const result = await model.generateContent(
-        AI_PROMPTS.chatUser(context, question, history)
+        AI_PROMPTS.chatUser(context, question, history, relatedBlock)
       );
 
       const response = result.response;

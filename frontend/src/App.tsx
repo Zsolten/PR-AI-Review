@@ -235,7 +235,11 @@ export default function App() {
           lastSynced={lastSynced}
           embedded
         />
-        <TeamMemoryPanel repositoryId={selectedRepoId} />
+        <TeamMemoryPanel
+          repositoryId={selectedRepoId}
+          repository={repositories.find((r) => r.id === selectedRepoId) ?? null}
+          onRepositoryIndexed={() => void loadRepositories()}
+        />
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
