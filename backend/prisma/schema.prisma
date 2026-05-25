@@ -29,18 +29,16 @@ model Repository {
   @@index([owner, name])
 }
 
-/// Chunked source file + embedding for repository memory (pgvector).
-/// Large files are split into multiple rows (chunkIndex > 0).
+
 model RepositoryFile {
   id           String                      @id @default(cuid())
   repositoryId String
   repository   Repository                  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  /// Path relative to repo root (e.g. src/services/user.ts)
   path         String
   chunkIndex   Int                         @default(0)
   content      String                      @db.Text
   branch       String
-  /// Gemini text-embedding-004 — stored via raw SQL (Prisma Unsupported type)
+  /// Gemini text-embedding
   embedding    Unsupported("vector(768)")?
   createdAt    DateTime                    @default(now())
   updatedAt    DateTime                    @updatedAt

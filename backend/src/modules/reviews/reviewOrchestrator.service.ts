@@ -122,7 +122,7 @@ export class ReviewOrchestratorService {
                 path: r.path,
                 similarity: r.similarity,
               })),
-            },
+            } as unknown as Prisma.InputJsonValue,
           },
         }),
         prisma.aIComment.createMany({ data: comments }),

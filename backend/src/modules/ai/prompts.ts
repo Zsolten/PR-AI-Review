@@ -6,7 +6,10 @@ Focus on practical, actionable feedback. Be concise and specific.
 Prioritize: error handling gaps, bug risks, readability, security, and performance.
 Respond in valid JSON only.`,
 
-  reviewTemplate: (context: string, relatedContextBlock = "") => `Review this pull request and return JSON with this exact shape:
+  reviewTemplate: (
+    context: string,
+    relatedContextBlock = "",
+  ) => `Review this pull request and return JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what changed and overall quality",
   "riskAnalysis": "bullet-style risks as a single string with newlines",
@@ -33,7 +36,12 @@ Reference related files when explaining architecture, dependencies, or how chang
 Do not invent files or code outside what is provided. Be clear and helpful.
 If unsure, say what additional context would help.`,
 
-  chatUser: (context: string, question: string, history: string, relatedContextBlock = "") =>
+  chatUser: (
+    context: string,
+    question: string,
+    history: string,
+    relatedContextBlock = "",
+  ) =>
     `PR Context:
 ${context}
 ${relatedContextBlock}
@@ -55,7 +63,7 @@ Respond in valid JSON only.`,
     prMeta: string,
     filesContext: string,
     teamRules: string[],
-    relatedContextBlock = ""
+    relatedContextBlock = "",
   ) => {
     const hasTeamRules = teamRules.length > 0;
     const teamRulesBlock = hasTeamRules
@@ -125,13 +133,14 @@ ${relatedContextBlock}`;
 
 /** Formats pgvector-retrieved chunks for injection into Gemini prompts. */
 export function formatRelatedContextBlock(
-  related: RetrievedCodeContext[]
+  related: RetrievedCodeContext[],
 ): string {
   if (related.length === 0) return "";
 
   const blocks = related.map((r) => {
     const preview = r.content.slice(0, 2500);
-    const truncated = r.content.length > preview.length ? "\n...(truncated)" : "";
+    const truncated =
+      r.content.length > preview.length ? "\n...(truncated)" : "";
     return `### ${r.path} (similarity ${r.similarity.toFixed(3)})\n${preview}${truncated}`;
   });
 
@@ -151,7 +160,7 @@ export function buildStoryContext(
     additions: number;
     deletions: number;
   },
-  files: Array<{ filename: string; status: string; patch: string | null }>
+  files: Array<{ filename: string; status: string; patch: string | null }>,
 ): { prMeta: string; filesContext: string } {
   const prMetaText = `Title: ${prMeta.title}
 Author: ${prMeta.author}
@@ -161,7 +170,9 @@ Description: ${prMeta.body ?? "(none)"}`;
 
   const filesContext = files
     .map((f) => {
-      const patchPreview = f.patch ? f.patch.slice(0, 2000) : "(no diff available)";
+      const patchPreview = f.patch
+        ? f.patch.slice(0, 2000)
+        : "(no diff available)";
       return `File: ${f.filename} (${f.status})\n${patchPreview}`;
     })
     .join("\n\n---\n\n");

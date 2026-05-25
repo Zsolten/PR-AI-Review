@@ -7,20 +7,20 @@ export interface PrRetrievalInput {
   repositoryId: string;
   title: string;
   body: string | null;
-  changedFiles: Array<{ filename: string; status: string; patch: string | null }>;
-  /** When set (e.g. chat), bias retrieval toward the user's question. */
+  changedFiles: Array<{
+    filename: string;
+    status: string;
+    patch: string | null;
+  }>;
   userQuery?: string;
 }
 
-/**
- * RAG retrieval at review time: embed PR diff → cosine search → top related files.
- */
 export class RagRetrievalService {
   private vectorStore: VectorStore;
 
   constructor(
     private env: Env,
-    private embeddingService: EmbeddingService
+    private embeddingService: EmbeddingService,
   ) {
     this.vectorStore = new VectorStore(env.RAG_EMBEDDING_DIMENSION);
   }
@@ -45,14 +45,16 @@ ${fileSummaries}`;
   }
 
   async retrieveRelatedContext(
-    input: PrRetrievalInput
+    input: PrRetrievalInput,
   ): Promise<RetrievedCodeContext[]> {
     const chunkCount = await this.vectorStore.countChunks(input.repositoryId);
     if (chunkCount === 0) return [];
 
     const queryText = this.buildPrQueryText(input);
     const queryEmbedding = await this.embeddingService.embedText(queryText);
-    const excludePaths = [...new Set(input.changedFiles.map((f) => f.filename))];
+    const excludePaths = [
+      ...new Set(input.changedFiles.map((f) => f.filename)),
+    ];
 
     // Fetch extra chunks so deduplication by path still yields RAG_TOP_K distinct files.
     const results = await this.vectorStore.similaritySearch({

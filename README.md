@@ -15,9 +15,12 @@ AI-powered pull request review application focused on developer workflow and rep
 
 - Connect GitHub repositories (PAT)
 - Receive GitHub webhook events (`pull_request` opened/synchronize)
+- Codebase Indexing & Embeddings utilizing `pgvector`
+- Story Mode Review generation determining logical chronological reading order for developers
+- Custom automated Team Rules evaluation directly against code diff patterns
+- Repository-aware Contextual RAG ensuring PR evaluation considers coupled files across the un-modified codebase
 - View PRs in a dashboard sidebar
-- PR details with changed files and diffs
-- Async AI review generation (summary, risks, categorized comments)
+- Async AI review generation (summary, risks, categorized comments, team rules, and story timeline)
 - Conversational chat about the PR
 
 ## Quick start
@@ -90,40 +93,6 @@ Run the seed script — it creates `acme/demo-app` with PR #42 and a sample AI r
 3. Click **Sync PRs** to fetch pull requests and file diffs from GitHub (filter: **All**, **Open**, or **Closed** in the sidebar). Sync may take longer per repo because it loads each PR’s changed files.
 4. Open a PR and use **Refresh diffs** if changed files look empty
 
-## API overview
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/repositories` | List repositories |
-| POST | `/api/repositories` | Register repo `{ owner, name }` |
-| POST | `/api/repositories/:id/sync` | Sync open PRs from GitHub |
-| GET | `/api/repositories/:id/pull-requests` | List PRs |
-| GET | `/api/pull-requests/:id` | PR detail |
-| POST | `/api/pull-requests/:id/refresh` | Refresh from GitHub |
-| POST | `/api/pull-requests/:id/reviews` | Start async AI review |
-| GET | `/api/pull-requests/reviews/:reviewId` | Review status/result |
-| POST | `/api/pull-requests/:id/chat` | Chat `{ message }` |
-| POST | `/api/webhooks/github` | GitHub webhook |
-
-## Project structure
-
-```
-pr-review-ai/
-├── backend/src/
-│   ├── modules/github/      # GitHub API + webhooks
-│   ├── modules/pullRequests/
-│   ├── modules/ai/          # Prompts + Gemini
-│   ├── modules/reviews/     # Async orchestration
-│   ├── routes/
-│   ├── services/            # DI container
-│   └── db/
-├── frontend/src/
-│   ├── api/
-│   ├── components/
-│   └── hooks/
-└── docker-compose.yml
-```
 
 ## Environment variables
 
@@ -166,41 +135,3 @@ See the architecture improvements section in the assistant response or extend wi
 - **Repository memory:** persist summaries and conventions per `Repository`
 - **Async pipelines:** BullMQ / Redis queue instead of `setImmediate`
 - **Agent reviews:** multi-step tools (lint, test impact, security scanners) orchestrated by an agent loop
-
-## Troubleshooting database (P1000)
-
-**Error:** `Authentication failed ... credentials for prreview are not valid`
-
-This usually means Prisma is talking to the **wrong** PostgreSQL on port 5432 (e.g. a system install), not the Docker container.
-
-1. Start the project database from the repo root:
-   ```bash
-   docker compose up -d postgres
-   docker compose ps
-   ```
-   `pr-review-postgres` should be **running**.
-
-2. Confirm `backend/.env` uses port **5433**:
-   ```
-   DATABASE_URL="postgresql://prreview:prreview@localhost:5433/prreview?schema=public"
-   ```
-
-3. Retry from `backend/`:
-   ```bash
-   npm run db:push
-   ```
-
-If the container was created with old settings, reset the volume and start fresh:
-```bash
-docker compose down -v
-docker compose up -d postgres
-```
-
-To test the Docker DB directly:
-```bash
-docker exec -it pr-review-postgres psql -U prreview -d prreview -c "SELECT 1"
-```
-
-## License
-
-MIT

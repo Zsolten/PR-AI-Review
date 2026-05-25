@@ -99,7 +99,7 @@ export class EmbeddingService {
           /* use default */
         }
         throw new RateLimitError(
-          `${detail} For free keys, lower RAG_MAX_INDEX_FILES / RAG_MAX_TOTAL_CHUNKS in .env or wait and retry.`
+          `${detail}`
         );
       }
 
