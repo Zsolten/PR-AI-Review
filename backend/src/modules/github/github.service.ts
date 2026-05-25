@@ -50,7 +50,7 @@ export class GitHubService {
       sort: "updated",
       direction: "desc",
     });
-    return prs as GitHubPullRequestSummary[];
+    return prs as unknown as GitHubPullRequestSummary[];
   }
 
   async getPullRequest(
