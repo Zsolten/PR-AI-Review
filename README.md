@@ -126,12 +126,3 @@ After changing keys, restart the backend (`npm run dev`).
 - **Extensible AI layer:** prompts in `modules/ai/prompts.ts`, orchestration isolated for future RAG/agents
 - **No auth in MVP:** single-tenant local/demo use
 
-## Next steps (suggested)
-
-See the architecture improvements section in the assistant response or extend with:
-
-- **RAG:** embed `PullRequestFile.patch` + repo docs; retrieval before `generateReview` (Gemini embeddings API)
-- **pgvector:** `Embedding` model + `vector` column; similarity search per repository
-- **Repository memory:** persist summaries and conventions per `Repository`
-- **Async pipelines:** BullMQ / Redis queue instead of `setImmediate`
-- **Agent reviews:** multi-step tools (lint, test impact, security scanners) orchestrated by an agent loop
